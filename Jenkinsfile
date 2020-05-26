@@ -187,6 +187,7 @@ pipeline {
        playbook: 'provision/playbook.yml',
        become: true,
        becomeUser: 'jenkins',
+       extras: '--force',
        extraVars: [
         ansible_become_pass: [value: "${TARGET_SUDO_PASS}", hidden: true],
         container_name: "${pom.artifactId}",
