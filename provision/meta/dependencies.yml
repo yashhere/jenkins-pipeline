@@ -2,3 +2,5 @@ dependencies:
   # - geerlingguy.java
   # - pellepelster.springboot-role
   - angstwad.docker_ubuntu
+  - geerlingguy.pip
+  - geerlingguy.docker

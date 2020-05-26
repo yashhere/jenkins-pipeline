@@ -24,9 +24,15 @@
   hosts: app_server
   become: yes
   become_user: root
+  # roles:
+  #   - role: angstwad.docker_ubuntu
+  #     when: "ansible_os_family == 'Debian'"
+  vars:
+    pip_install_packages:
+      - name: docker
   roles:
-    - role: angstwad.docker_ubuntu
-      when: "ansible_os_family == 'Debian'"
+    - geerlingguy.pip
+    - geerlingguy.docker
 
 - name: Deploy Container
   hosts: app_server
