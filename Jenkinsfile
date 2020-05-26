@@ -77,8 +77,6 @@ pipeline {
     script {
      withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
       withSonarQubeEnv('SonarQube') {
-       unstash 'it_tests'
-       unstash 'unit_tests'
        sh 'mvn sonar:sonar -DskipTests'
       }
      }
