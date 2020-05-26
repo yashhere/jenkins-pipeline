@@ -1,0 +1,46 @@
+---
+- name: Install Packages
+  hosts: localhost
+  connection: local
+  become_user: "{{ local_user | default('jenkins') }}"
+  become: yes
+  tasks:
+    - name:
+      apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+    - name: Install required system packages
+      apt: name={{ item }} state=latest update_cache=yes
+      loop:
+        [
+          "apt-transport-https",
+          "ca-certificates",
+          "curl",
+          "software-properties-common",
+          "python3-pip",
+          "virtualenv",
+          "python3-setuptools",
+        ]
+
+- name: Run docker.ubuntu
+  hosts: app_server
+  become: yes
+  become_user: root
+  roles:
+    - role: angstwad.docker_ubuntu
+      when: "ansible_os_family == 'Debian'"
+
+- name: Deploy Container
+  hosts: app_server
+  tasks:
+    - name: Pull default Docker image
+      docker_image:
+        name: "{{ default_container_image }}"
+        source: pull
+        state: present
+
+    - name: Create default containers
+      docker_container:
+        name: "{{ container_name }}"
+        image: "{{ container_image }}"
+        # command: "{{ default_container_command }}"
+        state: started
+      # with_sequence: count={{ create_containers }}

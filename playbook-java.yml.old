@@ -1,0 +1,41 @@
+---
+- name: Install Roles from Galaxy
+  hosts: localhost
+  connection: local
+  become_user: "{{ local_user | default('jenkins') }}"
+  become: yes
+  tasks:
+    - name: installing ansible-galaxy roles
+      command: ansible-galaxy install -r requirements.yml --roles-path roles
+
+- name: Install Java
+  hosts: app_server
+  become: yes
+  become_user: root
+  roles:
+    - role: geerlingguy.java
+      when: "ansible_os_family == 'Debian'"
+
+- name: Download Application from Repo
+  hosts: app_server
+  tasks:
+    - get_url:
+        force: yes
+        url: "{{ ARTIFACT_URL }}"
+        dest: "/tmp/{{ APP_NAME }}.war"
+        username: "{{ username }}"
+        password: "{{ password }}"
+    - stat:
+        path: "/tmp/{{ APP_NAME }}.war"
+
+- name: Setup Spring Boot
+  hosts: app_server
+  become: yes
+  become_user: root
+  roles:
+    - {
+        role: pellepelster.springboot-role,
+        spring_boot_file: "{{ APP_NAME }}.war",
+        spring_boot_file_source: "/tmp/{{ APP_NAME }}.war",
+        spring_boot_application_id: "{{ APP_NAME }}",
+      }
