@@ -176,6 +176,8 @@ pipeline {
   stage('Deploy') {
    steps {
     script {
+      def pom = readMavenPom file: 'pom.xml'
+
       // install galaxy roles
       sh "ansible-galaxy install -vvv -r provision/requirements.yml -p provision/roles/"
 
@@ -201,6 +203,8 @@ pipeline {
   stage('Arachni') {
     steps {
       script {
+        def pom = readMavenPom file: 'pom.xml'
+
         sh "mkdir -p $PWD/reports $PWD/arachni-artifacts"
 
         sh "docker run -v $PWD/reports:/arachni/reports ahannigan/docker-arachni bin/arachni --checks=*,-code_injection_php_input_wrapper,-ldap_injection,-no_sql*,-backup_files,-backup_directories,-captcha,-cvs_svn_users,-credit_card,-ssn,-localstart_asp,-webdav --plugin=autologin:url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}/login,parameters='login=user1@user1.com&password=abcd1234',check='Hi User 1|Logout' --scope-exclude-pattern='logout' --scope-exclude-pattern='resources' --session-check-pattern='Hi User 1' --session-check-url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT} --http-user-agent='Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36' --report-save-path=reports/${pom.artifactId}.afr https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}"
