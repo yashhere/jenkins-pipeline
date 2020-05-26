@@ -189,7 +189,7 @@ pipeline {
        becomeUser: 'jenkins',
        extraVars: [
         ansible_become_pass: [value: "${TARGET_SUDO_PASS}", hidden: true],
-        container_name: "${tag}",
+        container_name: "${pom.artifactId}",
         container_image: "${tag}"
        ]
       disableHostKeyChecking: true
