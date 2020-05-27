@@ -37,18 +37,32 @@ pipeline {
     }
    }
   }
+
   stage('Build') {
-   steps {
-    script {
-     withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
-      def pom = readMavenPom file: 'pom.xml'
-      sh "mvn -B -Dmaven.test.skip=true clean package"
-      stash name: "artifact", includes: "target/vulnerablejavawebapp-*.jar"
+   parallel {
+    stage('Build JAR') {
+     steps {
+      script {
+       withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
+        def pom = readMavenPom file: 'pom.xml'
+        sh "mvn -B -Dmaven.test.skip=true clean package"
+        stash name: "artifact", includes: "target/vulnerablejavawebapp-*.jar"
+       }
+      }
+     }
+    }
+
+    stage('Building image') {
+     steps {
+      script {
+       unstash 'artifact'
+       tag = "${env.DOCKER_REPOSITORY}" + ":$BUILD_NUMBER"
+       dockerImage = docker.build(tag)
+      }
      }
     }
    }
   }
-
   // stage('Unit Tests') {
   //  steps {
   //   script {
@@ -82,16 +96,6 @@ pipeline {
   //         }
   //     }
   // }
-
-  stage('Building image') {
-   steps {
-    script {
-     unstash 'artifact'
-     tag = "${env.DOCKER_REPOSITORY}" + ":$BUILD_NUMBER"
-     dockerImage = docker.build(tag)
-    }
-   }
-  }
 
   stage('Upload Images and Artifacts') {
    parallel {
