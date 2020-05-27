@@ -44,6 +44,24 @@ pipeline {
    }
   }
 
+  stage('Artifactory configuration') {
+   steps {
+    rtMavenDeployer(
+     id: "MAVEN_DEPLOYER",
+     serverId: ARTIFACTORY_SERVER_ID,
+     releaseRepo: "vulnerableapp-integration",
+     snapshotRepo: "vulnerableapp-snapshot"
+    )
+
+    rtMavenResolver(
+     id: "MAVEN_RESOLVER",
+     serverId: ARTIFACTORY_SERVER_ID,
+     releaseRepo: "vulnerableapp-integration",
+     snapshotRepo: "vulnerableapp-snapshot"
+    )
+   }
+  }
+
   stage('Build') {
    parallel {
     stage('Build JAR') {
@@ -51,7 +69,11 @@ pipeline {
       script {
        withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
         def pom = readMavenPom file: 'pom.xml'
-        sh "mvn -B -Dmaven.test.skip=true clean package"
+        rtMavenRun(
+         pom: 'pom.xml',
+         goals: '-B -Dmaven.test.skip=true clean package',
+         deployerId: "MAVEN_DEPLOYER"
+        )
         stash name: "artifact", includes: "target/vulnerablejavawebapp-*.jar"
        }
       }
@@ -103,6 +125,14 @@ pipeline {
   //     }
   // }
 
+  stage('Publish build info') {
+   steps {
+    rtPublishBuildInfo(
+     serverId: ARTIFACTORY_SERVER_ID
+    )
+   }
+  }
+
   stage('Upload Images and Artifacts') {
    parallel {
     stage('Upload Image') {
@@ -146,7 +176,7 @@ pipeline {
    parallel {
     stage('Static Analysis with SonarQube') {
      steps {
-       analyzeWithSonarQubeAndWaitForQualityGoal()
+      analyzeWithSonarQubeAndWaitForQualityGoal()
       // script {
       //  withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
       //   withSonarQubeEnv('SonarQube') {
@@ -190,8 +220,14 @@ pipeline {
    }
   }
 
+
+
   stage('Deploy') {
-   when { expression { return currentBuild.currentResult == 'SUCCESS' } }
+   when {
+    expression {
+     return currentBuild.currentResult == 'SUCCESS'
+    }
+   }
    steps {
     script {
      def pom = readMavenPom file: 'pom.xml'
@@ -226,9 +262,9 @@ pipeline {
      def pom = readMavenPom file: 'pom.xml'
      def workspace = pwd()
 
-     sh "docker run -v ${workspace}:/arachni/reports ahannigan/docker-arachni bin/arachni --checks=*,-code_injection_php_input_wrapper,-ldap_injection,-no_sql*,-backup_files,-backup_directories,-captcha,-cvs_svn_users,-credit_card,-ssn,-localstart_asp,-webdav --plugin=autologin:url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}/login,parameters='login=user1@user1.com&password=abcd1234',check='Hi User 1|Logout' --scope-exclude-pattern='logout' --scope-exclude-pattern='resources' --session-check-pattern='Hi User 1' --session-check-url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT} --http-user-agent='Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36' --report-save-path=${pom.artifactId}-arachni-scan-report.afr https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}"
+     sh "docker run -v ${workspace}:/arachni/reports ahannigan/docker-arachni bin/arachni --checks=*,-code_injection_php_input_wrapper,-ldap_injection,-no_sql*,-backup_files,-backup_directories,-captcha,-cvs_svn_users,-credit_card,-ssn,-localstart_asp,-webdav --plugin=autologin:url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}/login,parameters='login=user1@user1.com&password=abcd1234',check='Hi User 1|Logout' --scope-exclude-pattern='logout' --scope-exclude-pattern='resources' --session-check-pattern='Hi User 1' --session-check-url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT} --http-user-agent='Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36' --report-save-path=reports/${pom.artifactId}-arachni-scan-report.afr https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}"
 
-     sh "docker run --name=arachni_report -v ${workspace}:/arachni/reports ahannigan/docker-arachni bin/arachni_reporter ${pom.artifactId}-arachni-scan-report.afr --reporter=json:outfile=${pom.artifactId}-arachni-scan-report.json;"
+     sh "docker run --name=arachni_report -v ${workspace}:/arachni/reports ahannigan/docker-arachni bin/arachni_reporter reports/${pom.artifactId}-arachni-scan-report.afr --reporter=json:outfile=reports/${pom.artifactId}-arachni-scan-report.json;"
 
      sh "docker rm arachni_report"
     }
@@ -244,16 +280,16 @@ pipeline {
 }
 
 void analyzeWithSonarQubeAndWaitForQualityGoal() {
-  withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
-    withSonarQubeEnv('SonarQube') {
-        sh 'mvn sonar:sonar -DskipTests'
-    }
-    timeout(time: 2, unit: 'MINUTES') { // Normally, this takes only some ms. sonarcloud.io might take minutes, though :-(
-        def qg = waitForQualityGate()
-        if (qg.status != 'OK') {
-            echo "Pipeline unstable due to quality gate failure: ${qg.status}"
-            currentBuild.result = 'UNSTABLE'
-        }
-    }
+ withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
+  withSonarQubeEnv('SonarQube') {
+   sh 'mvn sonar:sonar -DskipTests'
   }
+  // timeout(time: 2, unit: 'MINUTES') { // Normally, this takes only some ms. sonarcloud.io might take minutes, though :-(
+  //  def qg = waitForQualityGate()
+  //  if (qg.status != 'OK') {
+  //   echo "Pipeline unstable due to quality gate failure: ${qg.status}"
+  //   currentBuild.result = 'UNSTABLE'
+  //  }
+  // }
+ }
 }
