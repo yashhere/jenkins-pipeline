@@ -55,7 +55,6 @@ pipeline {
     stage('Building image') {
      steps {
       script {
-       unstash 'artifact'
        tag = "${env.DOCKER_REPOSITORY}" + ":$BUILD_NUMBER"
        dockerImage = docker.build(tag)
       }
