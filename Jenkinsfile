@@ -211,6 +211,8 @@ pipeline {
 
   stage('Scan with Arachni') {
    steps {
+    sleep time: 5, unit: 'MINUTES'
+
     script {
      def pom = readMavenPom file: 'pom.xml'
 
