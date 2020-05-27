@@ -71,11 +71,17 @@ pipeline {
         def pom = readMavenPom file: 'pom.xml'
         rtMavenRun(
          pom: 'pom.xml',
-         goals: '-B -Dmaven.test.skip=true clean package',
+         goals: '-B -Dmaven.test.skip=true clean package -Dartifactory.publish.buildInfo=true',
          deployerId: "MAVEN_DEPLOYER"
         )
-        stash name: "artifact", includes: "target/vulnerablejavawebapp-*.jar"
        }
+      }
+     }
+     post {
+      success {
+       // we only worry about archiving the json file if the build steps are successful
+       archiveArtifacts(artifacts: 'target/*.json', allowEmptyArchive: true)
+       archiveArtifacts(artifacts: 'target/*.jar', allowEmptyArchive: true)
       }
      }
     }
@@ -83,7 +89,6 @@ pipeline {
     stage('Building image') {
      steps {
       script {
-       unstash 'artifact'
        tag = "${env.DOCKER_REPOSITORY}" + ":$BUILD_NUMBER"
        dockerImage = docker.build(tag)
       }
@@ -125,52 +130,16 @@ pipeline {
   //     }
   // }
 
-  stage('Publish build info') {
+  stage('Upload Image') {
    steps {
-    rtPublishBuildInfo(
-     serverId: ARTIFACTORY_SERVER_ID
-    )
-   }
-  }
-
-  stage('Upload Images and Artifacts') {
-   parallel {
-    stage('Upload Image') {
-     steps {
-      script {
-       docker.withRegistry('', 'docker-credentials') {
-        dockerImage.push()
-       }
-      }
-     }
-    }
-
-    stage('JAR Upload') {
-     steps {
-      script {
-       unstash 'artifact'
-       def pom = readMavenPom file: 'pom.xml'
-       def file = "${pom.artifactId}-${pom.version}"
-       def jar = "target/${file}.jar"
-
-       sh "cp pom.xml ${file}.pom"
-
-       nexusArtifactUploader artifacts: [
-         [artifactId: "${pom.artifactId}", classifier: '', file: "target/${file}.jar", type: 'jar'],
-         [artifactId: "${pom.artifactId}", classifier: '', file: "${file}.pom", type: 'pom']
-        ],
-        credentialsId: 'nexus',
-        groupId: "${pom.groupId}",
-        nexusUrl: NEXUS_URL,
-        nexusVersion: 'nexus3',
-        protocol: 'http',
-        repository: 'ansible-vulnerable',
-        version: "${pom.version}"
-      }
+    script {
+     docker.withRegistry('', 'docker-credentials') {
+      dockerImage.push()
      }
     }
    }
   }
+
 
   stage('Run Analysis') {
    parallel {
@@ -272,7 +241,7 @@ pipeline {
    post {
     success {
      // we only worry about archiving the json file if the build steps are successful
-     archiveArtifacts(artifacts: '*arachni-scan-report.json', fingerprint: true)
+     archiveArtifacts(artifacts: '*arachni-scan-report.json')
     }
    }
   }
