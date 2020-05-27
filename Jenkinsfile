@@ -18,6 +18,12 @@ pipeline {
  // using the Timestamper plugin we can add timestamps to the console log
  options {
   timestamps()
+
+  // Keep only the last 10 build to preserve space
+  buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '30'))
+
+  // Don't run concurrent builds for a branch, because they use the same workspace directory
+  disableConcurrentBuilds()
  }
 
  environment {
@@ -139,13 +145,14 @@ pipeline {
    parallel {
     stage('Static Analysis with SonarQube') {
      steps {
-      script {
-       withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
-        withSonarQubeEnv('SonarQube') {
-         sh 'mvn sonar:sonar -DskipTests'
-        }
-       }
-      }
+       analyzeWithSonarQubeAndWaitForQualityGoal()
+      // script {
+      //  withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
+      //   withSonarQubeEnv('SonarQube') {
+      //    sh 'mvn sonar:sonar -DskipTests'
+      //   }
+      //  }
+      // }
      }
     }
 
@@ -183,6 +190,7 @@ pipeline {
   }
 
   stage('Deploy') {
+   when { expression { return currentBuild.currentResult == 'SUCCESS' } }
    steps {
     script {
      def pom = readMavenPom file: 'pom.xml'
@@ -211,18 +219,15 @@ pipeline {
 
   stage('Scan with Arachni') {
    steps {
-    sleep time: 5, unit: 'MINUTES'
+    sleep time: 2, unit: 'MINUTES'
 
     script {
      def pom = readMavenPom file: 'pom.xml'
+     def workspace = pwd()
 
-     sh "mkdir -p $PWD/reports $PWD/arachni-artifacts"
+     sh "docker run -v ${workspace}:/arachni/reports ahannigan/docker-arachni bin/arachni --checks=*,-code_injection_php_input_wrapper,-ldap_injection,-no_sql*,-backup_files,-backup_directories,-captcha,-cvs_svn_users,-credit_card,-ssn,-localstart_asp,-webdav --plugin=autologin:url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}/login,parameters='login=user1@user1.com&password=abcd1234',check='Hi User 1|Logout' --scope-exclude-pattern='logout' --scope-exclude-pattern='resources' --session-check-pattern='Hi User 1' --session-check-url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT} --http-user-agent='Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36' --report-save-path=${pom.artifactId}-arachni-scan-report.afr https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}"
 
-     sh "docker run -v $PWD/reports:/arachni/reports ahannigan/docker-arachni bin/arachni --checks=*,-code_injection_php_input_wrapper,-ldap_injection,-no_sql*,-backup_files,-backup_directories,-captcha,-cvs_svn_users,-credit_card,-ssn,-localstart_asp,-webdav --plugin=autologin:url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}/login,parameters='login=user1@user1.com&password=abcd1234',check='Hi User 1|Logout' --scope-exclude-pattern='logout' --scope-exclude-pattern='resources' --session-check-pattern='Hi User 1' --session-check-url=https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT} --http-user-agent='Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36' --report-save-path=reports/${pom.artifactId}.afr https://${ARACHNI_TARGET_HOST}:${ARACHNI_TARGET_PORT}"
-
-     sh "docker run --name=arachni_report -v $PWD/reports:/arachni/reports ahannigan/docker-arachni bin/arachni_reporter reports/${pom.artifactId}.afr --reporter=json:outfile=reports/${pom.artifactId}-report.json;"
-
-     sh "docker cp arachni_report:/arachni/reports/${pom.artifactId}-report.json $PWD/arachni-artifacts"
+     sh "docker run --name=arachni_report -v ${workspace}:/arachni/reports ahannigan/docker-arachni bin/arachni_reporter ${pom.artifactId}-arachni-scan-report.afr --reporter=json:outfile=${pom.artifactId}-arachni-scan-report.json;"
 
      sh "docker rm arachni_report"
     }
@@ -230,9 +235,24 @@ pipeline {
    post {
     success {
      // we only worry about archiving the json file if the build steps are successful
-     archiveArtifacts(artifacts: 'arachni-artifacts/**', fingerprint: true)
+     archiveArtifacts(artifacts: '*arachni-scan-report.json', fingerprint: true)
     }
    }
   }
  }
+}
+
+void analyzeWithSonarQubeAndWaitForQualityGoal() {
+  withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
+    withSonarQubeEnv('SonarQube') {
+        sh 'mvn sonar:sonar -DskipTests'
+    }
+    timeout(time: 2, unit: 'MINUTES') { // Normally, this takes only some ms. sonarcloud.io might take minutes, though :-(
+        def qg = waitForQualityGate()
+        if (qg.status != 'OK') {
+            echo "Pipeline unstable due to quality gate failure: ${qg.status}"
+            currentBuild.result = 'UNSTABLE'
+        }
+    }
+  }
 }
