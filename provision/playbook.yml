@@ -24,15 +24,10 @@
   hosts: app_server
   become: yes
   become_user: root
-  # roles:
-  #   - role: angstwad.docker_ubuntu
-  #     when: "ansible_os_family == 'Debian'"
-  vars:
-    pip_install_packages:
-      - name: docker
   roles:
-    - geerlingguy.pip
-    - geerlingguy.docker
+    - role: angstwad.docker_ubuntu
+      ansible_python_interpreter: "/usr/bin/python3"
+      when: "ansible_os_family == 'Debian'"
 
 - name: Deploy Container
   hosts: app_server
@@ -47,7 +42,9 @@
       docker_container:
         name: "{{ container_name }}"
         image: "{{ container_image }}"
-        state: present
+        ports:
+          - "9000:9000"
+        state: started
         detach: true
         pull: true
         recreate: true
