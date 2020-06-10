@@ -62,8 +62,16 @@ pipeline {
    }
   }
 
-  stage('Build') {
-   parallel {
+
+    stage('Building image') {
+     steps {
+      script {
+       tag = "${env.DOCKER_REPOSITORY}" + ":$BUILD_NUMBER"
+       dockerImage = docker.build(tag)
+      }
+     }
+    }
+    
     stage('Build JAR') {
      steps {
       script {
@@ -86,16 +94,8 @@ pipeline {
      }
     }
 
-    stage('Building image') {
-     steps {
-      script {
-       tag = "${env.DOCKER_REPOSITORY}" + ":$BUILD_NUMBER"
-       dockerImage = docker.build(tag)
-      }
-     }
-    }
-   }
-  }
+    
+
   // stage('Unit Tests') {
   //  steps {
   //   script {
