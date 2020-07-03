@@ -246,21 +246,7 @@ pipeline {
    }
   }
  }
-}
-
-void analyzeWithSonarQubeAndWaitForQualityGoal() {
- withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
-  withSonarQubeEnv('SonarQube') {
-   sh 'mvn sonar:sonar -DskipTests'
-  }
-  // timeout(time: 2, unit: 'MINUTES') { // Normally, this takes only some ms. sonarcloud.io might take minutes, though :-(
-  //  def qg = waitForQualityGate()
-  //  if (qg.status != 'OK') {
-  //   echo "Pipeline unstable due to quality gate failure: ${qg.status}"
-  //   currentBuild.result = 'UNSTABLE'
-  //  }
-  // }
- }
+ 
  post {
         always {
             script {
@@ -282,4 +268,19 @@ void analyzeWithSonarQubeAndWaitForQualityGoal() {
             }
         }
     }
+}
+
+void analyzeWithSonarQubeAndWaitForQualityGoal() {
+ withEnv(["JAVA_HOME=${ tool 'jdk8' }", "PATH+MAVEN=${tool 'm3'}/bin"]) {
+  withSonarQubeEnv('SonarQube') {
+   sh 'mvn sonar:sonar -DskipTests'
+  }
+  // timeout(time: 2, unit: 'MINUTES') { // Normally, this takes only some ms. sonarcloud.io might take minutes, though :-(
+  //  def qg = waitForQualityGate()
+  //  if (qg.status != 'OK') {
+  //   echo "Pipeline unstable due to quality gate failure: ${qg.status}"
+  //   currentBuild.result = 'UNSTABLE'
+  //  }
+  // }
+ }
 }
