@@ -259,8 +259,9 @@ pipeline {
                     echo "${artifacts}"
                     echo "${artifacts}"
                     for (artifact in artifacts) {
-                     def f = "$(basename -- $artifact)"
-                     sh "gzip -c ${artifact} > '${f}.gz'"
+                     def f = sh(script: 'basename -- ${artifact}', returnStdout: true)
+                     echo "${f}"
+                     sh "gzip -c ${artifact} > ${f}.gz"
                     }
                 }
                 withAWS(region: 'ap-south-1', credentials: 'aws-s3') {
