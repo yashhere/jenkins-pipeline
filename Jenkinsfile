@@ -259,7 +259,7 @@ pipeline {
                     echo "${artifacts}"
                     echo "${artifacts}"
                     for (artifact in artifacts) {
-                     def f = sh(script: 'basename -- ${artifact}', returnStdout: true)
+                     def f = sh(script: 'basename ${artifact}', returnStdout: true)
                      echo "${f}"
                      sh "gzip -c ${artifact} > ${f}.gz"
                     }
