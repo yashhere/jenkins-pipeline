@@ -261,4 +261,25 @@ void analyzeWithSonarQubeAndWaitForQualityGoal() {
   //  }
   // }
  }
+ post {
+        always {
+            script {
+                echo "${env.JENKINS_HOME}"
+                echo "${env.WORKSPACE}"
+                directory = "${env.JENKINS_HOME}" + "/jobs/" + "${JOB_NAME}" + "/builds/" + "${BUILD_NUMBER}" + "/archive/"
+                dir(directory) {
+                    findFiles(glob: '**/*.json')
+                    sh "ls -la"
+                }
+                withAWS(region: 'ap-south-1', credentials: 'aws-s3') {
+                    identity = awsIdentity(); //Log AWS credentials
+                    // Upload files from working directory 'dist' in your project workspace
+                    s3Upload(bucket: "grafeas", path: "anchore/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: 'AnchoreReport*/anchore*.json', workingDir: directory);
+
+                    s3Upload(bucket: "grafeas", path: "snyk/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: 'snyk*.json', workingDir: directory);
+                    s3Upload(bucket: "grafeas", path: "arachni/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '*arachni*.json', workingDir: directory);
+                }
+            }
+        }
+    }
 }
