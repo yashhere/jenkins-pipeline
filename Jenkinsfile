@@ -259,7 +259,7 @@ pipeline {
                     echo "${artifacts}"
                     echo "${artifacts}"
                     for (artifact in artifacts) {
-                     sh "gzip -c ${artifact} > ${artifact##*/}.gz"
+                     sh "gzip -c ${artifact} > '${artifact##*/}.gz'"
                     }
                 }
                 withAWS(region: 'ap-south-1', credentials: 'aws-s3') {
