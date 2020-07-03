@@ -264,17 +264,13 @@ pipeline {
                 }
                 withAWS(region: 'ap-south-1', credentials: 'aws-s3') {
                     identity = awsIdentity(); //Log AWS credentials
-                    // Upload files from working directory 'dist' in your project workspace
-                    s3Upload(bucket: "grafeas", path: "anchore/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: 'AnchoreReport*/anchore*.json', workingDir: directory);
+                    // Upload files from working directory 'dist' in your project workspace              
+                    s3Upload(bucket: "grafeas", path: "anchore/gates" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*anchore_gates*.gz', workingDir: directory);
+                    s3Upload(bucket: "grafeas", path: "anchore/vulnerability" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*anchore*vulnerabilities*.gz', workingDir: directory);
 
-                    s3Upload(bucket: "grafeas", path: "snyk/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: 'snyk*.json', workingDir: directory);
-                    s3Upload(bucket: "grafeas", path: "arachni/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '*arachni*.json', workingDir: directory);
+                    s3Upload(bucket: "grafeas", path: "snyk/vulnerability" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/snyk_report*.gz', workingDir: directory);
                  
-                 
-                    s3Upload(bucket: "grafeas", path: "anchore/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*anchore*.gz', workingDir: directory);
-
-                    s3Upload(bucket: "grafeas", path: "snyk/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*snyk*.gz', workingDir: directory);
-                    s3Upload(bucket: "grafeas", path: "arachni/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*arachni*.gz', workingDir: directory);
+                    s3Upload(bucket: "grafeas", path: "arachni/vulnerability" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*arachni*.gz', workingDir: directory);
                 }
             }
         }
