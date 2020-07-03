@@ -257,6 +257,10 @@ pipeline {
                 dir(directory) {
                     artifacts = findFiles(glob: '**/*.json')
                     echo "${artifacts}"
+                    echo "${artifacts}"
+                    for (artifact in artifacts) {
+                     sh "gzip -c ${artifact} > ${artifact}.gz"
+                    }
                 }
                 withAWS(region: 'ap-south-1', credentials: 'aws-s3') {
                     identity = awsIdentity(); //Log AWS credentials
@@ -265,6 +269,12 @@ pipeline {
 
                     s3Upload(bucket: "grafeas", path: "snyk/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: 'snyk*.json', workingDir: directory);
                     s3Upload(bucket: "grafeas", path: "arachni/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '*arachni*.json', workingDir: directory);
+                 
+                 
+                    s3Upload(bucket: "grafeas", path: "anchore/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*anchore*.gz', workingDir: directory);
+
+                    s3Upload(bucket: "grafeas", path: "snyk/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*snyk*.gz', workingDir: directory);
+                    s3Upload(bucket: "grafeas", path: "arachni/" + "${JOB_NAME}" + "-" + "${BUILD_NUMBER}", includePathPattern: '**/*arachni*.gz', workingDir: directory);
                 }
             }
         }
