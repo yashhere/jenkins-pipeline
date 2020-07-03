@@ -256,12 +256,11 @@ pipeline {
                 directory = "${env.JENKINS_HOME}" + "/jobs/" + "${JOB_NAME}" + "/builds/" + "${BUILD_NUMBER}" + "/archive/"
                 dir(directory) {
                     artifacts = findFiles(glob: '**/*.json')
-                    echo "${artifacts}"
-                    echo "${artifacts}"
-                    for (artifact in artifacts) {
-                     def f = sh(script: 'basename ${artifact}', returnStdout: true)
-                     echo "${f}"
-                     sh "gzip -c ${artifact} > ${f}.gz"
+                    for (int i = 0; i < artifacts.size(); i++) {
+                        def f = sh(script: "basename ${artifacts[i]}", returnStdout: true).trim()
+                         def output = "${f}" + ".gz"
+                         echo "${output}"
+                         sh "gzip -c ${artifacts[i]} > ${output}"
                     }
                 }
                 withAWS(region: 'ap-south-1', credentials: 'aws-s3') {
