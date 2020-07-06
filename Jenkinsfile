@@ -258,8 +258,7 @@ pipeline {
                     artifacts = findFiles(glob: '**/*.json')
                     for (int i = 0; i < artifacts.size(); i++) {
                         def f = sh(script: "basename ${artifacts[i]}", returnStdout: true).trim()
-                         def output = "${f}" + "-" + ${BUILD_NUMBER}" + ".gz"
-                         echo "${output}"
+                         def output = ${BUILD_NUMBER}" + "-" + ${f}" + ".gz"
                          sh "gzip -c ${artifacts[i]} > ${output}"
                     }
                 }
