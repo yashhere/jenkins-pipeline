@@ -268,7 +268,7 @@ pipeline {
                     s3Upload(bucket: "grafeas", path: "anchore/gates/", includePathPattern: '**/*anchore_gates*.gz', workingDir: directory);
                     s3Upload(bucket: "grafeas", path: "anchore/vulnerability/", includePathPattern: '**/*anchore*vulnerabilities*.gz', workingDir: directory);
 
-                    s3Upload(bucket: "grafeas", path: "snyk/vulnerability/", includePathPattern: '**/snyk_report*.gz', workingDir: directory);
+                    s3Upload(bucket: "grafeas", path: "snyk/vulnerability/", includePathPattern: '**/*snyk_report*.gz', workingDir: directory);
                  
                     s3Upload(bucket: "grafeas", path: "arachni/vulnerability/", includePathPattern: '**/*arachni*.gz', workingDir: directory);
                 }
